@@ -1,0 +1,61 @@
+name: CI met notificaties
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.cov.outputs.pct }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '20'
+      - run: npm install
+      - name: Tests met coverage
+        run: npm test -- --coverage --coverageReporters=json-summary --coverageReporters=text
+      - name: Coverage uitlezen
+        id: cov
+        run: echo "pct=$(jq '.total.lines.pct' coverage/coverage-summary.json)" >> "$GITHUB_OUTPUT"
+
+  notify:
+    needs: test
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'pull_request')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Discord-bericht
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          STATUS: ${{ needs.test.result }}
+          EVENT: ${{ github.event_name }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          COVERAGE: ${{ needs.test.outputs.coverage }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$STATUS" = "success" ]; then ICON="✅"; else ICON="❌"; fi
+          if [ "$EVENT" = "pull_request" ]; then
+            MSG="$ICON PR-build op feature branch \`$BRANCH\`: $STATUS (coverage $COVERAGE%)"
+          else
+            MSG="$ICON Push naar \`main\`: $STATUS (coverage $COVERAGE%)"
+          fi
+          jq -n --arg c "$MSG $RUN_URL" '{content: $c}' \
+            | curl -sS -H "Content-Type: application/json" -d @- "$WEBHOOK"
+
+      - name: PR-commentaar
+        if: github.event_name == 'pull_request'
+        uses: peter-evans/create-or-update-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            **CI-status:** ${{ needs.test.result }}
+            **Line coverage:** ${{ needs.test.outputs.coverage }}%

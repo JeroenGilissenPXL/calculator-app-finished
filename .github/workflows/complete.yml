@@ -10,22 +10,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7.0.1
-    - name: Setup Node.js environment
-      uses: actions/setup-node@v7.1.0
-    - name: Verification
-      run: ls -alhR
-    - name: Build the code
-      run: |
-        npm install
-        zip -r app.zip . -x ".git/*"
-    - name: Run tests and generate coverage
-      run: npm test -- --coverage
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v7.1.0
+      - name: Verification
+        run: ls -alhR
+      - name: Build the code
+        run: |
+          npm install
+          zip -r app.zip . -x ".git/*"
+      - name: Run tests and generate coverage
+        run: npm test -- --coverage
 
-    - name: Code Coverage Report
-      uses: mridang/action-test-reporter@v1
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        coverage-file: ./coverage/clover.xml # Path to your clover, cobertura, jacoco, or lcov file
-        working-directory: ./
+      - name: Code Coverage Report
+        uses: mridang/action-test-reporter@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          coverage-file: ./coverage/clover.xml # Path to your clover, cobertura, jacoco, or lcov file
+          working-directory: ./

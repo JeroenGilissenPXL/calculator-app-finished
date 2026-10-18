@@ -1,0 +1,18 @@
+name: Production Deployment
+
+on: workflow_dispatch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_IP }}
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull jeroengpxl/calculator-app:latest
+            docker ps -q | xargs -r docker stop
+            docker run -d -p 80:5000 jeroengpxl/calculator-app:latest
